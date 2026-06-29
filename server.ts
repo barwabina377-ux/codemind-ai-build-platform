@@ -9,6 +9,7 @@ import { cloudPlatform } from "./src/server/cloud-build";
 import { ZipSecurity } from "./src/server/cloud-build/ZipSecurity";
 
 export type BuildStatus = 
+
   | 'Uploaded'
   | 'Queued'
   | 'Preparing'
@@ -273,7 +274,7 @@ async function startServer() {
     const jobId = req.params.id;
     const job = buildManager.getJob(jobId);
     if (!job) return res.status(404).json({ error: "Job not found" });
-    if (job.status !== 'Success') return res.status(400).json({ error: "Build is not succsessful" });
+    if (job.status !== 'Success') return res.status(400).json({ error: "Build is not successful" });
 
     const artifactPath = path.join(process.cwd(), 'workspaces', jobId, 'output.apk');
     if (fs.existsSync(artifactPath)) {

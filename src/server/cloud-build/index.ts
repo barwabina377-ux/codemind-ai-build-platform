@@ -17,6 +17,9 @@ export class CloudBuildPlatform {
   public rateLimiter: RateLimiter;
   public downloads: DownloadManager;
 
+  // We reuse the BuildQueue from server.ts loosely, or integrate it here.
+  // For now, we will expose the handlers.
+
   constructor() {
     this.storage = new StorageManager();
     this.artifacts = new ArtifactManager(this.storage);
@@ -34,7 +37,12 @@ export class CloudBuildPlatform {
         cb(null, file.fieldname + '-' + uniqueSuffix + '.zip');
       }
     });
-    return multer({ storage, limits: { fileSize: 100 * 1024 * 1024 } });
+    
+    // Max 100MB zip
+    return multer({ 
+      storage,
+      limits: { fileSize: 100 * 1024 * 1024 } 
+    });
   }
 }
 

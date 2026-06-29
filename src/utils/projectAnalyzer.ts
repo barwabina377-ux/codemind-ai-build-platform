@@ -111,7 +111,7 @@ export async function analyzeProject(loadedZip: JSZip, zipEntries: { name: strin
       type: 'error',
       title: 'Gradle Wrapper missing',
       explanation: 'The Gradle wrapper ensures the project builds with a consistent version of Gradle.',
-      recmmendation: 'Generate the wrapper by running `gradle wrapper`.'
+      recommendation: 'Generate the wrapper by running `gradle wrapper`.'
     });
     score -= 20;
   } else {
@@ -166,7 +166,7 @@ export async function analyzeProject(loadedZip: JSZip, zipEntries: { name: strin
   // Combine root and app gradle to find plugin versions
   const allGradle = (rootBuildGradle || '') + '\n' + (appBuildGradle || '');
   
-  const agpMatch = allGradle.match(/(?:com\.android\.application|com\.android\.tools\.build:gradle|id\s*\(\s*['"]com\.android\.application["']\s*\)\s*version)\s*['"]?([0-9.]+)['"]?/);
+  const agpMatch = allGradle.match(/(?:com\.android\.application|com\.android\.tools\.build:gradle|id\s*\(\s*['"]com\.android\.application['"]\s*\)\s*version)\s*['"]?([0-9.]+)['"]?/);
   if (agpMatch) {
     info.agpVersion = agpMatch[1];
   } else if (projectType === 'Android Studio') {
