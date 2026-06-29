@@ -150,7 +150,7 @@ class BuildQueue {
         ];
 
         this.addLog(job.id, `Executing: bash ${args.join(' ')}`);
-        this.addLog(job.id, `Architecture: ${process.arch}` | Worker script: ${buildScript}`);
+        this.addLog(job.id, `Architecture: ${process.arch} | Worker script: ${buildScript}`);
         
         const buildProcess = spawn('bash', args);
 
@@ -214,7 +214,7 @@ const buildManager = new BuildQueue();
 
 async function startServer() {
   const app = express();
-  const PORT = 3000;
+  const PORT = process.env.PORT || 3000;
 
   app.use(express.json({ limit: '100mb' }));
 
@@ -451,10 +451,10 @@ async function startServer() {
 
       if (routingRules && apiKeys) {
          // Determine if task is complex based on heuristics
-         const isComplex = message.toLowerCase().includes('architect') || 
-                           message.toLowerCase().includes('plan') || 
-                           message.toLowerCase().includes('build a complete') ||
-                           message.length > 500;
+         const isComplex = (message or '').toLowerCase().includes('architect') || 
+                           (message or '').toLowerCase().includes('plan') || 
+                           (message or '').toLowerCase().includes('build a complete') ||
+                           (message || '').length > 500;
          
         const selectedModel = isComplex ? routingRules.complex : routingRules.fast;
         if (selectedModel) {
@@ -465,6 +465,7 @@ async function startServer() {
             else if (selectedModel.includes('deepseek')) provider = 'deepseek';
             else if (selectedModel.includes('openrouter')) provider = 'openrouter';
             else provider = 'google';
+
             const providerConfig = apiKeys.find((p: any) => p.id === provider);
             if (providerConfig && providerConfig.key) {
                key = providerConfig.key;
@@ -527,7 +528,7 @@ You must:
 
 Here is the current codebase context the user has uploaded:
 ${contextStr}
-`;
+`";
 
       let prompt = message;
       if (history && history.length > 0) {
