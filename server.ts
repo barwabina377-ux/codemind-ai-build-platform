@@ -141,7 +141,8 @@ class BuildQueue {
         this.updateStatus(job.id, 'Building', 50, 'Running Gradle Build');
         this.addLog(job.id, 'Starting local Android Build Worker...');
         
-        const workerScriptPath = path.join(process.cwd(), 'src', 'worker', 'local-build.sh');
+        const buildScript = process.arch === "arm64" ? "local-build-arm64.sh" : "local-build.sh";
+        const workerScriptPath = path.join(process.cwd(), "src", "worker", buildScript);
         
         const args = [
             workerScriptPath,
