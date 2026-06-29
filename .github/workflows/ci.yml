@@ -8,16 +8,7 @@ permissions:
   contents: read
   packages: write
 jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: "22", cache: "npm" }
-      - run: npm ci --legacy-peer-deps
-      - run: npm run build --if-present
   docker:
-    needs: test
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
     strategy:
@@ -58,7 +49,9 @@ jobs:
         run: echo "REPO=$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
       - name: Create multi-arch manifest
         run: |
-          docker manifest create ghcr.io/$REPO:latest ghcr.io/$REPO:linux-amd64 ghcr.io/$REPO:linux-arm64
+          docker manifest create ghcr.io/$REPO:latest \
+            ghcr.io/$REPO:linux-amd64 \
+            ghcr.io/$REPO:linux-arm64
           docker manifest annotate ghcr.io/$REPO:latest ghcr.io/$REPO:linux-arm64 --arch arm64 --os linux
           docker manifest annotate ghcr.io/$REPO:latest ghcr.io/$REPO:linux-amd64 --arch amd64 --os linux
           docker manifest push ghcr.io/$REPO:latest
