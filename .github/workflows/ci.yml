@@ -1,46 +1,64 @@
-name: CI/CD
+name: CI/CD - Multi-Arch
 on:
   push:
     branches: [main, master]
   pull_request:
     branches: [main, master]
-
 permissions:
   contents: read
   packages: write
-
 jobs:
-  build:
+  test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: 'npm'
+        with: { node-version: "22", cache: "npm" }
       - run: npm ci --legacy-peer-deps
-      - run: npm run build
-      - uses: actions/upload-artifact@v4
-        with:
-          name: dist
-          path: dist/
-
+      - run: npm run build --if-present
   docker:
-    needs: build
+    needs: test
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    strategy:
+      matrix:
+        platform: [linux/amd64, linux/arm64]
     steps:
       - uses: actions/checkout@v4
+      - uses: docker/setup-qemu-action@v3
       - uses: docker/setup-buildx-action@v3
       - uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Lowercase repo
+        run: echo "REPO=$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
+      - name: Platform slug
+        run: echo "PSLUG=$(echo ${{ matrix.platform }} | tr '/' '-')" >> $GITHUB_ENV
       - uses: docker/build-push-action@v5
         with:
           context: .
+          platforms: ${{ matrix.platform }}
           push: true
-          tags: ghcr.io/${{ github.repository }}:latest
+          tags: ghcr.io/${{ env.REPO }}:${{ env.PSLUG }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+  manifest:
+    needs: docker
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    steps:
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Lowercase repo
+        run: echo "REPO=$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
+      - name: Create multi-arch manifest
+        run: |
+          docker manifest create ghcr.io/$REPO:latest ghcr.io/$REPO:linux-amd64 ghcr.io/$REPO:linux-arm64
+          docker manifest annotate ghcr.io/$REPO:latest ghcr.io/$REPO:linux-arm64 --arch arm64 --os linux
+          docker manifest annotate ghcr.io/$REPO:latest ghcr.io/$REPO:linux-amd64 --arch amd64 --os linux
+          docker manifest push ghcr.io/$REPO:latest
