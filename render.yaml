@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: codemind-ai
+    env: node
+    buildCommand: npm install --legacy-peer-deps && npx vite build && npx esbuild server.ts --bundle --platform=node --format=cjs --packages=external --outfile=dist/server.cjs
+    startCommand: node dist/server.cjs
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: GEMINI_API_KEY
+        sync: false
