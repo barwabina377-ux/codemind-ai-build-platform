@@ -9,7 +9,6 @@ import { cloudPlatform } from "./src/server/cloud-build";
 import { ZipSecurity } from "./src/server/cloud-build/ZipSecurity";
 
 export type BuildStatus = 
-
   | 'Uploaded'
   | 'Queued'
   | 'Preparing'
@@ -130,7 +129,7 @@ class BuildQueue {
         fs.mkdirSync(workspaceDir, { recursive: true });
         if (job.zipData) {
           fs.writeFileSync(path.join(workspaceDir, 'project.zip'), Buffer.from(job.zipData, 'base64'));
-          this.addLog(job.id, 'Project ZIP saved to workspace.');
+          this.addLog(job.id, 'Project ZIP imported.');
         }
 
         this.updateStatus(job.id, 'Extracting', 30, 'Extracting files');
@@ -139,7 +138,7 @@ class BuildQueue {
         if((job.status as BuildStatus) === 'Cancelled') return runNext();
 
         this.updateStatus(job.id, 'Building', 50, 'Running Gradle Build');
-        this.addLog(job.id, 'Starting local Android Build Worker...');
+        this.addLog(job.id, 'Starting Android Build Worker...');
         
         const buildScript = process.arch === "arm64" ? "local-build-arm64.sh" : "local-build.sh";
         const workerScriptPath = path.join(process.cwd(), "src", "worker", buildScript);
@@ -151,7 +150,8 @@ class BuildQueue {
         ];
 
         this.addLog(job.id, `Executing: bash ${args.join(' ')}`);
-
+        this.addLog(job.id, `Architecture: ${process.arch}` | Worker script: ${buildScript}`);
+        
         const buildProcess = spawn('bash', args);
 
         buildProcess.stdout.on('data', (data) => {
@@ -171,7 +171,6 @@ class BuildQueue {
               this.addLog(job.id, `Process terminated after cancellation.`);
               return runNext();
             }
-
             if (code === 0 && fs.existsSync(path.join(workspaceDir, 'output.apk'))) {
                 this.updateStatus(job.id, 'Success', 100, 'Build Completed');
                 this.addLog(job.id, 'Build successful. APK generated and moved to workspace output.');
@@ -183,7 +182,7 @@ class BuildQueue {
             
             // Clean up zip to save space
             if (fs.existsSync(path.join(workspaceDir, 'project.zip'))) {
-               fs.unlinkSync(path.join(workspaceDir, 'project.zip'));
+              fs.unlinkSync(path.join(workspaceDir, 'project.zip'));
             }
             
             runNext();
@@ -390,8 +389,6 @@ async function startServer() {
     res.json({ running, failed, completed, queued });
   });
 
-  // ==========================================
-
   const chatUploadDir = path.join(process.cwd(), 'cloud_storage', 'chat_uploads');
   if (!fs.existsSync(chatUploadDir)) fs.mkdirSync(chatUploadDir, { recursive: true });
   const chatUpload = multer({
@@ -407,7 +404,7 @@ async function startServer() {
   });
   app.post("/api/chat/stream", async (req: any, res: any) => {
     try {
-      const { codebase, message, history, attachments } = req.body;
+      const { codebase, message, history, attachments, apiKeys, routingRules } = req.body;
       let attachmentContext = '';
       if (attachments && attachments.length > 0) {
         attachmentContext = '\n\n=== ATTACHED FILES ===\n';
@@ -420,8 +417,13 @@ async function startServer() {
         }
       }
       const contextStr = codebase && codebase.trim() ? '=== CODEBASE CONTEXT ===\n' + codebase + '\n========================' + attachmentContext : attachmentContext || 'No codebase provided.';
-      const key = process.env.GEMINI_API_KEY || '';
-      if (!key) return res.status(500).json({ error: "GEMINI_API_KEY not configured" });
+      
+      let key = process.env.GEMINI_API_KEY || '';
+      if (apiKeys && apiKeys.length > 0) {
+        const googleKey = apiKeys.find((p: any) => p.id === 'google' && p.key);
+        if (googleKey) key = googleKey.key;
+      }
+      if (!key) return res.status(500).json({ error: "GEMINI_API_KEY not configured. Add your Gemini API key in Settings." });
       const ai = new GoogleGenAI({ apiKey: key });
       res.setHeader('Content-Type', 'text/plain; charset=utf-8');
       res.setHeader('Transfer-Encoding', 'chunked');
@@ -454,8 +456,8 @@ async function startServer() {
                            message.toLowerCase().includes('build a complete') ||
                            message.length > 500;
          
-         const selectedModel = isComplex ? routingRules.complex : routingRules.fast;
-         if (selectedModel) {
+        const selectedModel = isComplex ? routingRules.complex : routingRules.fast;
+        if (selectedModel) {
             // Find which provider supports this model based on known list
             if (selectedModel.includes('claude')) provider = 'anthropic';
             else if (selectedModel.includes('gpt')) provider = 'openai';
@@ -463,7 +465,6 @@ async function startServer() {
             else if (selectedModel.includes('deepseek')) provider = 'deepseek';
             else if (selectedModel.includes('openrouter')) provider = 'openrouter';
             else provider = 'google';
-
             const providerConfig = apiKeys.find((p: any) => p.id === provider);
             if (providerConfig && providerConfig.key) {
                key = providerConfig.key;
@@ -563,26 +564,24 @@ ${contextStr}
             headers['HTTP-Referer'] = 'https://codemind.ai';
             headers['X-Title'] = 'CodeMind AI';
          }
-
          const openaiRes = await fetch(baseURL, {
             method: 'POST',
             headers,
             body: JSON.stringify({
-               model: model.replace('openrouter/', ''),
-               messages: [
-                  { role: 'system', content: systemInstruction },
-                  { role: 'user', content: prompt }
-               ],
-               temperature: 0.2
+              model: model.replace('openrouter/', ''),
+              messages: [
+                { role: 'system', content: systemInstruction },
+                { role: 'user', content: prompt }
+              ],
+              temperature: 0.2
             })
          });
-
-         if (!openaiRes.ok) {
+        if (!openaiRes.ok) {
             const err = await openaiRes.text();
             throw new Error(`Provider API Error (${provider}): ${err}`);
-         }
-         const data = await openaiRes.json();
-         reply = data.choices?.[0]?.message?.content || '';
+        }
+        const data = await openaiRes.json();
+        reply = data.choices?.[0]?.message?.content || '';
       }
 
       res.json({ reply });
