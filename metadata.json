@@ -1,0 +1,6 @@
+{
+  "name": "Zip File Explorer",
+  "description": "A local zip file reader and explorer using JSZip.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
