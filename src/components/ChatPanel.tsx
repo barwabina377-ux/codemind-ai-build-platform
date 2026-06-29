@@ -221,7 +221,7 @@ export function ChatPanel({
       abortControllerRef.current = new AbortController();
       const response = await fetch('/api/chat/stream', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ codebase: allSourceCode?.substring(0, 100000) || '', message: trimmed, history: messages.map(m => ({ role: m.role, content: m.content })), attachments: userMsg.attachments?.map(a => ({ name: a.name, path: a.serverPath, type: a.type })) }),
+        body: JSON.stringify({ codebase: allSourceCode?.substring(0, 100000) || '', message: trimmed, history: messages.map(m => ({ role: m.role, content: m.content })), attachments: userMsg.attachments?.map(a => ({ name: a.name, path: a.serverPath, type: a.type })), apiKeys: JSON.parse(localStorage.getItem('codemind_api_keys') || '[]'), routingRules: JSON.parse(localStorage.getItem('codemind_routing_rules') || '{}') }),
         signal: abortControllerRef.current.signal,
       });
       if (!response.ok) { const err = await response.json().catch(() => ({})); throw new Error(err.error || `HTTP ${response.status}`); }
@@ -313,7 +313,7 @@ export function ChatPanel({
               {messages.map((msg) => (
                 <motion.div key={msg.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className={`flex gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
                   <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${msg.role === 'user' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-600'}`}>{msg.role === 'user' ? <User size={14} /> : <Bot size={14} />}</div>
-                  <div className={`max-w-[85%] ${msg.role === 'user' ? 'items-end' : 'items-start'} flex flex-col`}>
+                  <div className={bmax-w-[85%] ${msg.role === 'user' ? 'items-end' : 'items-start'} flex flex-col`}>
                     {msg.attachments && msg.attachments.length > 0 && (
                       <div className="flex flex-wrap gap-1.5 mb-1.5">
                         {msg.attachments.map(att => att.type === 'image' && att.dataUrl ? <img key={att.id} src={att.dataUrl} alt={att.name} className="h-16 w-16 object-cover rounded-lg border" /> : <div key={att.id} className="flex items-center gap-1.5 bg-gray-100 rounded px-2 py-1 text-xs text-gray-600"><FileText size={12} /> {att.name}</div>)}
