@@ -1,0 +1,43 @@
+#cloud-config
+runcmd:
+  - apt-get update && apt-get upgrade -y
+  - apt-get install -y ca-certificates curl gnupg
+  - curl -fsSL https://get.docker.com | sh
+  - systemctl enable docker && systemctl start docker
+  - apt-get install -y docker-compose-plugin
+  - ufw allow 22/tcp && ufw allow 80/tcp && ufw allow 443/tcp && ufw allow 3000/tcp
+  - ufw --force enable
+  - useradd -m -s /bin/bash codemind || true
+  - usermod -aG docker codemind
+  - mkdir -p /data/storage/{workspace,uploads,projects,artifacts,logs,cache,workers,chat_uploads}
+  - chown -R codemind:codemind /data
+  - mkdir -p /opt/android-sdk
+  - |
+    cat > /home/codemind/docker-compose.yml << 'COMP'
+    version: "3.9"
+    services:
+      app:
+        image: ghcr.io/barwabina377-ux/codemind-ai-build-platform:latest
+        container_name: codemind
+        restart: unless-stopped
+        ports: ["3000:3000"]
+        environment:
+          - NODE_ENV=production
+          - PORT=3000
+          - ANDROID_SDK_ROOT=/opt/android-sdk
+        volumes:
+          - /data/storage/workspace:/app/cloud_storage/workspace
+          - /data/storage/uploads:/app/cloud_storage/uploads
+          - /data/storage/projects:/app/cloud_storage/projects
+          - /data/storage/artifacts:/app/cloud_storage/artifacts
+          - /data/storage/logs:/app/cloud_storage/logs
+          - /data/storage/cache:/app/cloud_storage/cache
+          - /data/storage/workers:/app/cloud_storage/workers
+          - /data/storage/chat_uploads:/app/cloud_storage/chat_uploads
+          - /opt/android-sdk:/opt/android-sdk
+    COMP
+  - cd /home/codemind && docker compose pull && docker compose up -d
+  - sleep 10 && docker exec codemind android-sdk-setup 2>&1 | tee /tmp/sdk.log || true
+  - echo "DONE" > /tmp/codemind-status.txt
+  - docker ps >> /tmp/codemind-status.txt
+final_message: "CodeMind AI ready on port 3000"
